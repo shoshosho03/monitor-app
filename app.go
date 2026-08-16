@@ -29,6 +29,10 @@ func (a *App) domReady(ctx context.Context) {
 
 	// Windowsの通常ウィンドウスタイルを外した後に、意図したサイズへ合わせる。
 	runtime.WindowSetSize(ctx, windowWidth, windowHeight)
+
+	if err := moveWindowToTopRight(); err != nil {
+		log.Printf("ウィンドウを画面右上へ移動できませんでした: %v", err)
+	}
 }
 
 // フロントから呼ばれるAPI

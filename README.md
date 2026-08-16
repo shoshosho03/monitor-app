@@ -16,6 +16,7 @@ CPU使用率とメモリ使用率を定期取得し、現在値と過去10分間
 - CSSで作成した7セグメント数字
 - OS標準タイトルバーを使わないフレームレス表示
 - ヘッダーのドラッグによるウィンドウ移動
+- 起動時にプライマリ画面の右上へ自動配置
 - Windowsのタスクバーにボタンを表示しないツールウィンドウ動作
 
 ## 処理の流れ
@@ -147,6 +148,7 @@ WebViewのDOM準備完了後に呼ばれます。
 1. `hideWindowFromTaskbar()` でWindows用ウィンドウスタイルを変更
 2. 失敗時はログへ警告を出力
 3. `runtime.WindowSetSize` で意図したサイズを再適用
+4. `moveWindowToTopRight()` でプライマリ画面の右上へ移動
 
 サイズを再適用する理由は、Windowsのネイティブウィンドウスタイルを変更した後に、最終的なクライアント領域を指定値へ合わせるためです。
 
@@ -215,6 +217,17 @@ cpuPercent, err := cpu.Percent(0, false)
 
 各Win32 API呼び出しは失敗を確認し、呼び出し元へ文脈付きのエラーを返します。
 
+#### 画面右上への配置
+
+`SystemParametersInfoW` に `SPI_GETWORKAREA` を渡し、タスクバーを除いたプライマリ画面の作業領域を取得します。`GetWindowRect` で実際のウィンドウ幅を取得し、次の座標を `SetWindowPos` へ渡します。
+
+```text
+x = 作業領域の右端 - ウィンドウ幅 - 8px
+y = 作業領域の上端 + 8px
+```
+
+これにより、タスクバーが上端にある環境でも重ならず、起動するたびに画面右上へ配置されます。
+
 ### `taskbar_other.go`
 
 `//go:build !windows` が付いているため、Windows以外で使われます。
@@ -225,7 +238,7 @@ func hideWindowFromTaskbar() error {
 }
 ```
 
-Windows固有の関数と同じシグネチャを持つ何もしない実装です。これにより、`app.go` にOS判定を書かず、LinuxやmacOSでもコンパイルできます。
+Windows固有の `hideWindowFromTaskbar` と `moveWindowToTopRight` と同じシグネチャを持つ、何もしない実装です。これにより、`app.go` にOS判定を書かず、LinuxやmacOSでもコンパイルできます。
 
 ### `go.mod` / `go.sum`
 

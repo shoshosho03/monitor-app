@@ -22,7 +22,16 @@ const (
 	swpNoZOrder     = 0x0004
 	swpNoActivate   = 0x0010
 	swpFrameChanged = 0x0020
+	spiGetWorkArea  = 0x0030
+	windowMargin    = 8
 )
+
+type rect struct {
+	left   int32
+	top    int32
+	right  int32
+	bottom int32
+}
 
 var (
 	user32            = syscall.NewLazyDLL("user32.dll")
@@ -30,17 +39,28 @@ var (
 	getWindowLongPtrW = user32.NewProc("GetWindowLongPtrW")
 	setWindowLongPtrW = user32.NewProc("SetWindowLongPtrW")
 	setWindowPos      = user32.NewProc("SetWindowPos")
+	getWindowRect     = user32.NewProc("GetWindowRect")
+	systemParameters  = user32.NewProc("SystemParametersInfoW")
 )
 
-func hideWindowFromTaskbar() error {
+func findAppWindow() (uintptr, error) {
 	className, err := syscall.UTF16PtrFromString(windowClassName)
 	if err != nil {
-		return fmt.Errorf("ウィンドウクラス名の変換: %w", err)
+		return 0, fmt.Errorf("ウィンドウクラス名の変換: %w", err)
 	}
 
 	hwnd, _, _ := findWindowW.Call(uintptr(unsafe.Pointer(className)), 0)
 	if hwnd == 0 {
-		return fmt.Errorf("対象ウィンドウが見つかりません")
+		return 0, fmt.Errorf("対象ウィンドウが見つかりません")
+	}
+
+	return hwnd, nil
+}
+
+func hideWindowFromTaskbar() error {
+	hwnd, err := findAppWindow()
+	if err != nil {
+		return err
 	}
 
 	// フレームレス表示でも残る通常ウィンドウスタイルを外し、
@@ -74,6 +94,41 @@ func hideWindowFromTaskbar() error {
 	result, _, callErr := setWindowPos.Call(hwnd, 0, 0, 0, 0, 0, flags)
 	if result == 0 {
 		return fmt.Errorf("ウィンドウスタイルの反映: %w", callErr)
+	}
+
+	return nil
+}
+
+func moveWindowToTopRight() error {
+	hwnd, err := findAppWindow()
+	if err != nil {
+		return err
+	}
+
+	var workArea rect
+	result, _, callErr := systemParameters.Call(
+		spiGetWorkArea,
+		0,
+		uintptr(unsafe.Pointer(&workArea)),
+		0,
+	)
+	if result == 0 {
+		return fmt.Errorf("画面の作業領域の取得: %w", callErr)
+	}
+
+	var windowRect rect
+	result, _, callErr = getWindowRect.Call(hwnd, uintptr(unsafe.Pointer(&windowRect)))
+	if result == 0 {
+		return fmt.Errorf("ウィンドウサイズの取得: %w", callErr)
+	}
+
+	width := windowRect.right - windowRect.left
+	x := workArea.right - width - windowMargin
+	y := workArea.top + windowMargin
+	flags := uintptr(swpNoSize | swpNoZOrder | swpNoActivate)
+	result, _, callErr = setWindowPos.Call(hwnd, 0, uintptr(x), uintptr(y), 0, 0, flags)
+	if result == 0 {
+		return fmt.Errorf("ウィンドウ位置の更新: %w", callErr)
 	}
 
 	return nil
