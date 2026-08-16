@@ -6,10 +6,16 @@ import (
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
+	"github.com/wailsapp/wails/v2/pkg/options/windows"
 )
 
 //go:embed all:frontend/dist
 var assets embed.FS
+
+const (
+	windowWidth  = 420
+	windowHeight = 147
+)
 
 func main() {
 	// Create an instance of the app structure
@@ -17,14 +23,22 @@ func main() {
 
 	// Create application with options
 	err := wails.Run(&options.App{
-		Title:  "monitor-app",
-		Width:  350,
-		Height: 120,
+		Title:         "monitor-app",
+		Width:         windowWidth,
+		Height:        windowHeight,
+		MinHeight:     1,
+		Frameless:     true,
+		DisableResize: true,
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},
-		BackgroundColour: &options.RGBA{R: 27, G: 38, B: 54, A: 1},
-		OnStartup:        app.startup,
+		BackgroundColour: &options.RGBA{R: 2, G: 6, B: 4, A: 1},
+		Windows: &windows.Options{
+			WindowClassName:                   "monitorAppWindow",
+			DisableFramelessWindowDecorations: true,
+		},
+		OnStartup:  app.startup,
+		OnDomReady: app.domReady,
 		Bind: []interface{}{
 			app,
 		},
