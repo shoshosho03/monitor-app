@@ -485,22 +485,13 @@ GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go test ./...
 
 ## CLI 版
 
-CLI 版は GUI 版と同じ CPU・メモリ情報取得処理を使い、指定した間隔で使用率を標準出力へ表示します。
+CLI 版は GUI 版と同じ CPU・メモリ情報取得処理を使い、指定した間隔で使用率を標準出力へ表示します。ソースから直接実行します。
 
 ```bash
 go run ./monitor/cli -interval 1s
 ```
 
 `-interval` には `500ms`、`2s`、`1m` など Go の duration 形式を指定できます。終了は `Ctrl+C` です。
-
-配布用の実行ファイルは次のように作成できます。
-
-```bash
-go build -trimpath -o monitor-cli ./monitor/cli
-GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -o build/bin/monitor-cli.exe ./monitor/cli
-```
-
-CLI 版は Wails や WebView2 を使わない単体のコンソールアプリとして動作します。
 
 ## Windows実行ファイルの作成
 
