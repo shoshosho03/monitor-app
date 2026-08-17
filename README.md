@@ -444,7 +444,7 @@ ReactとReact DOMが実行時依存、ViteとReactプラグインが開発時依
 コマンドはこのディレクトリで実行します。
 
 ```bash
-cd monitor/monitor-app
+cd monitor-app
 ```
 
 ### 開発モード
