@@ -13,6 +13,7 @@ CPU使用率とメモリ使用率を定期取得し、現在値と過去10分間
 - メモリ使用率をパーセント表示
 - CPU・メモリそれぞれの過去10分間の履歴グラフ
 - 取得間隔をミリ秒単位で変更
+- ターミナルで定期的に使用率を表示する CLI 版
 - CSSで作成した7セグメント数字
 - OS標準タイトルバーを使わないフレームレス表示
 - ヘッダーのドラッグによるウィンドウ移動
@@ -52,7 +53,9 @@ Go側でエラーが発生すると、WailsによってJavaScriptのPromiseがre
 monitor-app/
 ├── main.go                     # Wailsの起動とウィンドウ設定
 ├── app.go                      # Wailsのライフサイクルと公開API
-├── monitor.go                  # CPU・メモリ情報の取得
+├── monitor.go                  # GUIから共通の情報取得処理への接続
+├── internal/monitor/stats.go   # GUI・CLI共通のシステム情報取得
+├── monitor/cli/main.go         # CLI版のエントリーポイント
 ├── taskbar_windows.go          # Windows固有のウィンドウスタイル変更
 ├── taskbar_other.go            # Windows以外向けの代替実装
 ├── go.mod / go.sum             # Goモジュールと依存関係
@@ -76,7 +79,7 @@ monitor-app/
 └── README.md
 ```
 
-`frontend/dist`、`frontend/node_modules`、`build/bin` は生成物です。`frontend/wailsjs` もWailsが生成するため、通常は直接編集しません。
+`frontend/dist`、`frontend/node_modules` はGit管理対象外の生成物です。`frontend/wailsjs` もWailsが生成するため、通常は直接編集しません。`build/bin` のWindows実行ファイルは配布用としてGitで管理します。
 
 ## Goバックエンド
 
@@ -165,9 +168,9 @@ Reactから呼び出される公開APIです。`GetSystemStats()` の戻り値�
 
 Goの `error` はWailsによってJavaScriptのPromiseエラーへ変換されます。
 
-### `monitor.go`
+### `monitor.go` / `internal/monitor/stats.go`
 
-画面やWailsに依存しない、システム情報取得ロジックです。
+`internal/monitor/stats.go` は画面や Wails に依存しない、GUI・CLI 共通のシステム情報取得ロジックです。`monitor.go` は従来の GUI 側 API を保ちながらこの共通処理を呼び出します。
 
 #### メモリ使用率
 
@@ -186,7 +189,7 @@ cpuPercent, err := cpu.Percent(0, false)
 - 第1引数 `0`: 関数内で待機せず、前回値との差分から使用率を計算
 - 第2引数 `false`: CPUコア別ではなくシステム全体を1件で返す
 
-結果はスライスなので、全体使用率として `cpuPercent[0]` を返します。戻り値の順番は「メモリ使用率、CPU使用率、エラー」です。
+結果はスライスなので、値が存在することを確認してから全体使用率として `cpuPercent[0]` を返します。戻り値の順番は「メモリ使用率、CPU使用率、エラー」です。
 
 ### `taskbar_windows.go`
 
@@ -479,6 +482,25 @@ Windows向けコードだけをLinux上でコンパイル確認する場合は�
 ```bash
 GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go test ./...
 ```
+
+## CLI 版
+
+CLI 版は GUI 版と同じ CPU・メモリ情報取得処理を使い、指定した間隔で使用率を標準出力へ表示します。
+
+```bash
+go run ./monitor/cli -interval 1s
+```
+
+`-interval` には `500ms`、`2s`、`1m` など Go の duration 形式を指定できます。終了は `Ctrl+C` です。
+
+配布用の実行ファイルは次のように作成できます。
+
+```bash
+go build -trimpath -o monitor-cli ./monitor/cli
+GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -o build/bin/monitor-cli.exe ./monitor/cli
+```
+
+CLI 版は Wails や WebView2 を使わない単体のコンソールアプリとして動作します。
 
 ## Windows実行ファイルの作成
 
